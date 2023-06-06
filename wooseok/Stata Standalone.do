@@ -1,5 +1,4 @@
 // Working Directory
-cd "C:/Dropbox/STADL/AER"
 
 // Load dataset
 import excel "aer_original.xlsx", sheet("Sheet1") firstrow clear
