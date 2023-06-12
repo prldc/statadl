@@ -1,7 +1,7 @@
 // Working Directory
 
 // Load dataset
-import excel "aer_original.xlsx", sheet("Sheet1") firstrow clear
+import excel "wooseok/aer_original.xlsx", sheet("Sheet1") firstrow clear
 
 // Run regression to get sample
 reg polity4 polity4L lrgdpchL i.year
@@ -10,7 +10,7 @@ reg polity4 polity4L lrgdpchL i.year
 keep if e(sample)
 
 // Merge with COW
-merge m:1 country year using "cow cap loc.dta", nogenerate
+merge m:1 country year using "cowcaploc.dta", nogenerate
 drop if polity4==.
 
 // Get list of non-matched observations
@@ -48,7 +48,7 @@ replace country="Yemen (Arab Republic of Yemen)" if country=="Yemen"
 replace country="Zimbabwe (Rhodesia)" if country=="Zimbabwe"
 
 // Re-merge
-merge m:1 country year using "cow cap loc.dta", nogenerate update
+merge m:1 country year using "cowcaploc.dta", nogenerate update
 drop if polity4==.
 
 // Need something that checks whether a particular year for a country in the user dataset is present in the COW dataset
@@ -99,10 +99,10 @@ keep if year==1965
 sort country
 gen ccode = _n
 keep ccode caplong caplat
-save "cap loc.dta", replace
+save "caploc.dta", replace
 
 rename (ccode caplat caplong) =2
-cross using "cap loc.dta"
+cross using "caploc.dta"
 geodist2 caplat caplong caplat2 caplong2, gen(d)
 
 drop caplat* caplong*
@@ -136,10 +136,10 @@ keep if year==1970
 sort country
 gen ccode = _n
 keep ccode caplong caplat
-save "cap loc.dta", replace
+save "caploc.dta", replace
 
 rename (ccode caplat caplong) =2
-cross using "cap loc.dta"
+cross using "caploc.dta"
 geodist2 caplat caplong caplat2 caplong2, gen(d)
 
 drop caplat* caplong*
@@ -173,10 +173,10 @@ keep if year==1975
 sort country
 gen ccode = _n
 keep ccode caplong caplat
-save "cap loc.dta", replace
+save "caploc.dta", replace
 
 rename (ccode caplat caplong) =2
-cross using "cap loc.dta"
+cross using "caploc.dta"
 geodist2 caplat caplong caplat2 caplong2, gen(d)
 
 drop caplat* caplong*
@@ -210,10 +210,10 @@ keep if year==1980
 sort country
 gen ccode = _n
 keep ccode caplong caplat
-save "cap loc.dta", replace
+save "caploc.dta", replace
 
 rename (ccode caplat caplong) =2
-cross using "cap loc.dta"
+cross using "caploc.dta"
 geodist2 caplat caplong caplat2 caplong2, gen(d)
 
 drop caplat* caplong*
@@ -248,10 +248,10 @@ keep if year==1985
 sort country
 gen ccode = _n
 keep ccode caplong caplat
-save "cap loc.dta", replace
+save "caploc.dta", replace
 
 rename (ccode caplat caplong) =2
-cross using "cap loc.dta"
+cross using "caploc.dta"
 geodist2 caplat caplong caplat2 caplong2, gen(d)
 
 drop caplat* caplong*
@@ -286,10 +286,10 @@ keep if year==1990
 sort country
 gen ccode = _n
 keep ccode caplong caplat
-save "cap loc.dta", replace
+save "caploc.dta", replace
 
 rename (ccode caplat caplong) =2
-cross using "cap loc.dta"
+cross using "caploc.dta"
 geodist2 caplat caplong caplat2 caplong2, gen(d)
 
 drop caplat* caplong*
@@ -324,10 +324,10 @@ keep if year==1995
 sort country
 gen ccode = _n
 keep ccode caplong caplat
-save "cap loc.dta", replace
+save "caploc.dta", replace
 
 rename (ccode caplat caplong) =2
-cross using "cap loc.dta"
+cross using "caploc.dta"
 geodist2 caplat caplong caplat2 caplong2, gen(d)
 
 drop caplat* caplong*
@@ -361,10 +361,10 @@ keep if year==2000
 sort country
 gen ccode = _n
 keep ccode caplong caplat
-save "cap loc.dta", replace
+save "caploc.dta", replace
 
 rename (ccode caplat caplong) =2
-cross using "cap loc.dta"
+cross using "caploc.dta"
 geodist2 caplat caplong caplat2 caplong2, gen(d)
 
 drop caplat* caplong*
