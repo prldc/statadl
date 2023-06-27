@@ -483,6 +483,51 @@ end
 
 // Ok, apparently the main issue here is that Stata breaks out of the loop as soon as it sees the 'end' command to exit the Mata environment.
 
+mata:
+void calculate_matrix(string scalar year) {
+    X = st_data(., "d*")
+    r = cols(X)
+    c = cols(X)
+    Z = 99999 * (X :== 0) + (X :> 0) :* X
+    W = J(r,c,0)
+    for (i=1; i<=c; i++) {
+        o = order(Z,i)
+        W[o[1..10],i] = J(10,1,1)
+    }
+    W = W'
+    st_matrix("W" + year, W)
+}
+end
 
+
+capture program drop make_ntspmat
+
+program define make_ntspmat
+    args year_var
+
+    // Get a list of unique years in the dataset
+    levelsof `year_var', local(years)
+
+    foreach y of local years {
+        preserve
+        qui {
+            keep if `year_var' == `y'
+            sort country
+            gen ccode = _n
+            keep ccode caplat caplong
+            save "`y'.dta", replace
+            rename (ccode caplat caplong) =2
+            cross using "`y'.dta"
+            geodist2 caplat caplong caplat2 caplong2, gen(d)
+            drop caplat* caplong*
+            format %8.0g d
+            reshape wide d, i(ccode) j(ccode2)
+
+            mata: calculate_matrix("`y'")
+        }
+        restore
+		
+    }
+end
 
 
