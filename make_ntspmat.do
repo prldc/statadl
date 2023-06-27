@@ -433,89 +433,56 @@ program define geodist2, rclass
 
 end
 
-capture program drop compute_w_matrix
-
-program define compute_w_matrix, rclass
-    args year caplat_var caplong_var outfile k
-
-    // Check if the year exists in the data
-    qui count if year == `year'
-    if r(N) == 0 {
-        di as error "No data for year `year'"
-        exit 198
-    }
-
-    preserve
-    qui {
-        keep if year == `year'
-        sort country
-        gen ccode = _n
-        keep ccode `caplat_var' `caplong_var'
-        save "cap loc.dta", replace
-
-        rename (ccode `caplat_var' `caplong_var') =2
-        cross using "cap loc.dta"
-        geodist2 `caplat_var' `caplong_var' `caplat_var'2 `caplong_var'2, gen(d)
-
-        drop `caplat_var'* `caplong_var'*
-        format %8.0g d
-        reshape wide d, i(ccode) j(ccode2)
-    }
-
-    mata:
-    X = st_data(., "d*")
-    r = cols(X)
-    c = cols(X)
-    Z = 99999 * (X :== 0) + (X :> 0) :* X
-    W_year = J(r,c,0)
-    for (i=1; i<=c; i++) {
-            o = order(Z,i)
-            W_year[o[1..`: word 1 of `k''],i] = J(`: word 1 of `k'',1,1) // Adjust the number of neighbors
-    }
-    W_year = W_year'
-    st_matrix("`outfile'", W_year)
-    end
-
-    restore
-end
-
-// Get a list of unique years in the dataset
-levelsof year, local(years)
-
-// Compute W matrix for each unique year
-foreach year of local years {
-    compute_w_matrix `year' caplat caplong W`year' 10
-}
-
-mata:
-W_compile = st_matrix("W" + st_local("years")[1])
-for (i=2; i<=length(st_local("years")); i++) {
-    W_compile = blockdiag(W_compile, st_matrix("W" + st_local("years")[i]))
+mata: 
+function foo () {
+    gnxl = 42
+    gnxl
 }
 end
 
-// Create modified cowcodes to avoid duplicate IDs that cause errors
-gen ccode=_n
+capture program drop make_ntspmat
 
-sort year country
-mata:
-id = st_data(., "ccode")
+program define make_ntspmat
+    args year_var
+
+    // Get a list of unique years in the dataset
+    levelsof `year_var', local(years)
+
+    foreach y of local years {
+        preserve
+        qui {
+            keep if `year_var' == `y'
+            sort country
+            gen ccode = _n
+            keep ccode caplat caplong
+            save "`y'.dta", replace
+			rename (ccode caplat caplong) =2
+            cross using "`y'.dta"
+            geodist2 caplat caplong caplat2 caplong2, gen(d)
+            drop caplat* caplong*
+            format %8.0g d
+            reshape wide d, i(ccode) j(ccode2)
+			mata:
+			X = st_data(., "d*")
+			r = cols(X)
+			c = cols(X)
+			Z = 99999 * (X :== 0) + (X :> 0) :* X
+			W`y' = J(r,c,0)
+			for (i=1; i<=c; i++) {
+				o = order(Z,i)
+				W`y'[o[1..10],i] = J(10,1,1)
+				W`y' = W`y''
+			st_matrix("W`y'", W`y')
+			}
+			}
+			end
+			di "finished `y'"
+			restore
+    }
 end
 
-// Store W matrix using spmatrix
-spmatrix spfrommata W_all = W_compile id, normalize(row)
+// Ok, apparently the main issue here is that Stata breaks out of the loop as soon as it sees the 'end' command to exit the Mata environment.
 
-spset ccode, coord(caplat caplong)
 
-// Table 1 Column 1
-spregress polity4 lrgdpchL, ml dvarlag(W_all) vce(robust)
 
-// Table 1 Column 2
-spregress polity4 lrgdpchL i.year, ml dvarlag(W_all) vce(robust)
 
-// Table 1 Column 3
-egen id = group(country)
-spregress polity4 lrgdpchL i.id i.year, ml dvarlag(W_all) vce(robust)
-
-// Table 1 Column 4
-spregress polity4 polity4L lrgdpchL i.year, ml dvarlag(W_all) vce(robust)
