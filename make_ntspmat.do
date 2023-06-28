@@ -433,53 +433,6 @@ program define geodist2, rclass
 
 end
 
-mata: 
-function foo () {
-    gnxl = 42
-    gnxl
-}
-end
-
-capture program drop make_ntspmat
-
-program define make_ntspmat
-    args year_var
-
-    // Get a list of unique years in the dataset
-    levelsof `year_var', local(years)
-
-    foreach y of local years {
-        preserve
-        qui {
-            keep if `year_var' == `y'
-            sort country
-            gen ccode = _n
-            keep ccode caplat caplong
-            save "`y'.dta", replace
-			rename (ccode caplat caplong) =2
-            cross using "`y'.dta"
-            geodist2 caplat caplong caplat2 caplong2, gen(d)
-            drop caplat* caplong*
-            format %8.0g d
-            reshape wide d, i(ccode) j(ccode2)
-			mata:
-			X = st_data(., "d*")
-			r = cols(X)
-			c = cols(X)
-			Z = 99999 * (X :== 0) + (X :> 0) :* X
-			W`y' = J(r,c,0)
-			for (i=1; i<=c; i++) {
-				o = order(Z,i)
-				W`y'[o[1..10],i] = J(10,1,1)
-				W`y' = W`y''
-			st_matrix("W`y'", W`y')
-			}
-			}
-			end
-			di "finished `y'"
-			restore
-    }
-end
 
 // Ok, apparently the main issue here is that Stata breaks out of the loop as soon as it sees the 'end' command to exit the Mata environment.
 
@@ -496,6 +449,26 @@ void calculate_matrix(string scalar year) {
     }
     W = W'
     st_matrix("W" + year, W)
+	
+}
+end
+
+mata:
+void create_blockdiag_matrix(string scalar list) {
+    // Split the list into an array of matrix names
+    matrix_names = tokens(list)
+	
+    // Initialize W_compile as the first matrix in the list
+    W_compile = st_matrix(matrix_names[1])
+	
+    // Loop over the rest of the matrices in the list
+    for (i=2; i<=length(matrix_names); i++) {
+        // Add the current matrix to W_compile using blockdiag
+        W_compile = blockdiag(W_compile, st_matrix(matrix_names[i]))
+    }
+	
+    // Save W_compile as a Stata matrix
+    st_matrix("W_compile", W_compile)
 }
 end
 
@@ -507,6 +480,10 @@ program define make_ntspmat
 
     // Get a list of unique years in the dataset
     levelsof `year_var', local(years)
+	
+	// Initialize a local macro to store the names of the matrices
+    local matrix_list ""
+	local reversed_list ""
 
     foreach y of local years {
         preserve
@@ -522,12 +499,46 @@ program define make_ntspmat
             drop caplat* caplong*
             format %8.0g d
             reshape wide d, i(ccode) j(ccode2)
-
             mata: calculate_matrix("`y'")
+			local matrix_list "`matrix_list' W`y'"
         }
         restore
-		
-    }
+		}
+		// Reverse the matrix list
+		foreach m of local matrix_list {
+			local reversed_list "`m' `reversed_list'"
+		}
+
+		mata: create_blockdiag_matrix("`reversed_list'")
 end
+
+// Create modified cowcodes to avoid duplicate IDs that cause errors
+gen ccode=_n
+
+sort year country
+mata:
+id = st_data(., "ccode")
+end
+
+// Store W matrix using spmatrix
+spmatrix spfrommata W_all = W_compile id, normalize(row)
+
+spset ccode, coord(caplat caplong)
+
+
+
+
+// Table 1 Column 1
+spregress polity4 lrgdpchL, ml dvarlag(W_all) vce(robust)
+
+// Table 1 Column 2
+spregress polity4 lrgdpchL i.year, ml dvarlag(W_all) vce(robust)
+
+// Table 1 Column 3
+egen id = group(country)
+spregress polity4 lrgdpchL i.id i.year, ml dvarlag(W_all) vce(robust)
+
+// Table 1 Column 4
+spregress polity4 polity4L lrgdpchL i.year, ml dvarlag(W_all) vce(robust)
 
 
