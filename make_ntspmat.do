@@ -510,7 +510,11 @@ program define make_ntspmat
 		}
 
 		mata: create_blockdiag_matrix("`reversed_list'")
+		// Converts it to a Mata matrix
+		mata:  W_compile = st_matrix("W_compile")
 end
+
+make_ntspmat year
 
 // Create modified cowcodes to avoid duplicate IDs that cause errors
 gen ccode=_n
