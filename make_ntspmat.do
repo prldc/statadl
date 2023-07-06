@@ -350,11 +350,6 @@ program define geodist2, rclass
 			// use an extended missing value to flag observations that failed to converge
 			qui replace `generate' = 20000 if `cont'
 			qui count if `generate' == 20000
-			if r(N) {
-				dis as err "Warning: " r(N) " distances failed to converge due to near-antipodal points"
-				dis as err "Distance(s) between these points are estimated to be 20000km"
-			}
-			
 		}
 		else {
 		
@@ -448,26 +443,25 @@ void calculate_matrix(string scalar year) {
         W[o[1..10],i] = J(10,1,1)
     }
     W = W'
-    st_matrix("W" + year, W)
-	
+	st_matrix("W" + year, W)
 }
 end
 
 mata:
-void create_blockdiag_matrix(string scalar list) {
+void blockdiag_matrix(string scalar matrix_list) {
     // Split the list into an array of matrix names
-    matrix_names = tokens(list)
-	
-    // Initialize W_compile as the first matrix in the list
-    W_compile = st_matrix(matrix_names[1])
-	
-    // Loop over the rest of the matrices in the list
-    for (i=2; i<=length(matrix_names); i++) {
+    matrix_names = tokens(matrix_list)
+
+    // Initialize W_compile as the last matrix in the list
+    W_compile = st_matrix(matrix_names[length(matrix_names)])
+
+    // Loop over the rest of the matrices in the list in reverse order
+    for (i=length(matrix_names)-1; i>=1; i--) {
         // Add the current matrix to W_compile using blockdiag
-        W_compile = blockdiag(W_compile, st_matrix(matrix_names[i]))
+        W_compile = blockdiag(st_matrix(matrix_names[i]), W_compile)
     }
-	
-    // Save W_compile as a Stata matrix
+
+    // Save W_compile as a Mata matrix
     st_matrix("W_compile", W_compile)
 }
 end
@@ -483,7 +477,6 @@ program define make_ntspmat
 	
 	// Initialize a local macro to store the names of the matrices
     local matrix_list ""
-	local reversed_list ""
 
     foreach y of local years {
         preserve
@@ -504,12 +497,8 @@ program define make_ntspmat
         }
         restore
 		}
-		// Reverse the matrix list
-		foreach m of local matrix_list {
-			local reversed_list "`m' `reversed_list'"
-		}
 
-		mata: create_blockdiag_matrix("`reversed_list'")
+		mata: blockdiag_matrix("`matrix_list'")
 		// Converts it to a Mata matrix
 		mata:  W_compile = st_matrix("W_compile")
 end

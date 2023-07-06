@@ -1,4 +1,5 @@
-*! version 1.1.0  18jun2019 Robert Picard, picard@netbox.com
+capture program drop geodist2
+
 program define geodist2, rclass
 
 	version 9
@@ -298,11 +299,6 @@ program define geodist2, rclass
 			// use an extended missing value to flag observations that failed to converge
 			qui replace `generate' = 20000 if `cont'
 			qui count if `generate' == 20000
-			if r(N) {
-				dis as err "Warning: " r(N) " distances failed to converge due to near-antipodal points"
-				dis as err "Distance(s) between these points are estimated to be 20000km"
-			}
-			
 		}
 		else {
 		
